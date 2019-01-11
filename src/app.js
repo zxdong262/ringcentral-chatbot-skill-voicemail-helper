@@ -1,6 +1,6 @@
 import express from 'express'
 import { Bot } from 'ringcentral-chatbot/dist/models'
-import { User, subscribeInterval } from './user'
+import { User, subscribeInterval } from './ringcentral'
 import _ from 'lodash'
 
 const app = express()
