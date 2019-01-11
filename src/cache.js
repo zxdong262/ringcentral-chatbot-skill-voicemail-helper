@@ -2,15 +2,9 @@
  * cache model
  */
 
-/**
- * User class
- */
-
 import Sequelize from 'sequelize'
 
-import sequelize from './sequelize'
-
-export const User = sequelize.define('cache', {
+export const User = Sequelize.define('cache', {
   id: {
     type: Sequelize.STRING,
     primaryKey: true
