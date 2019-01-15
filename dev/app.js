@@ -1,17 +1,21 @@
 import createApp from 'ringcentral-chatbot/dist/apps'
-import googleDriveSkill from 'ringcentral-chatbot-skill-google-drive'
+import skill from '../src'
 
 const handle = async event => {
   if (event.type === 'Message4Bot' && event.text.toLowerCase() === 'about') {
     const { bot, group } = event
-    await bot.sendMessage(group.id, { text: `
-I am a Glip chatbot to notice you events about files added/trashed in your Google Drive account.
-I am created by ![:Person](850957020). My source code is [here](https://github.com/tylerlong/glip-google-drive-chatbot).
-Please reply "help" if you don't know how to start. Remember to mention me if this is not a one-one conversation between you and me.
-`.trim() })
+    await bot.sendMessage(
+      group.id,
+      {
+        text: `
+I am a Glip chatbot, I can monitor and transcript your voicemail, and do some analysis. If you want me to monitor your voicemail, please reply "![:Person](${bot.id}) monitor"
+`
+      }
+    )
   }
 }
 
-const app = createApp(handle, [googleDriveSkill])
+const app = createApp(handle, [ skill ])
+app.get('/', (req, res) => res.send('server running'))
 
 export default app

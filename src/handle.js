@@ -1,4 +1,4 @@
-import { User } from './user'
+import { User } from './ringcentral'
 
 const handle = async event => {
   switch (event.type) {
@@ -20,22 +20,36 @@ const handleMessage4Bot = async event => {
   let user
   switch (text.toLowerCase()) {
     case 'unmonitor':
-      user = await User.findByPk(userId)
+      user = await User.findOne({
+        where: {
+          userId
+        }
+      })
       if (user) {
-        await user.removeGroup(groupId)
+        await user.destroy()
         await reply(`![:Person](${userId}), stopped monitoring your voicemail!\nIf you want me to monitor your voicemail again, please reply "![:Person](${botId}) monitor"`)
       } else {
         await reply(`![:Person](${userId}), If you want me to monitor your voicemail, please reply "![:Person](${botId}) monitor" first.`)
       }
       break
     case 'monitor':
-      user = await User.findByPk(userId)
-      if (user && await user.check()) {
-        await user.addGroup(groupId, botId)
+      user = await User.findOne({
+        where: {
+          userId
+        }
+      })
+      if (user && await user.validate()) {
+        await User.create({
+          name: 'ringcentral',
+          userId,
+          groupId,
+          botId,
+          data: user.data
+        })
         await user.ensureWebHook()
         await reply(`![:Person](${userId}), now your voicemail is monitored!\nIf you want me to **stop monitor** your voicemail, please reply "![:Person](${botId}) unmonitor"`)
       } else {
-        const user = new User()
+        user = new User()
         const authorizeUri = user.authorizeUri(groupId, botId)
         await reply(`![:Person](${userId}), [click here](${authorizeUri}) to authorize me to access your RingCentral data first.`)
       }

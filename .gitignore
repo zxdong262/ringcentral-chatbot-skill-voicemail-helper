@@ -82,3 +82,4 @@ yarn.lock
 fakeDB/
 google.json
 /dist/
+*.sqlite

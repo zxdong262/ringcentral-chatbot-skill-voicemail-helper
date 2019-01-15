@@ -22,10 +22,17 @@ function shouldSyncVoiceMail (event) {
 app.get('/rc/oauth', async (req, res) => {
   const { code, state } = req.query
   const [groupId, botId] = state.split(':')
-  let user = new User()
-  await user.init({ code })
-  await user.addGroup(groupId, botId)
-  let userId = user.id
+  let user = await User.findOne({
+    where: {
+      name: 'ringcentral',
+      groupId,
+      botId
+    }
+  })
+  if (!user) {
+    user = await User.init({ code, groupId, botId })
+  }
+  let { userId } = user
   const bot = await Bot.findByPk(botId)
   await bot.sendMessage(
     groupId,
@@ -50,8 +57,12 @@ app.post('/rc/webhook', async (req, res) => {
   let isRenewEvent = _.get(message, 'event') === subscribeInterval()
   if (newMailCount || isRenewEvent) {
     const userId = (message.body.extensionId || message.ownerId).toString()
-    const user = await User.findByPk(userId)
-
+    let user = await User.findOne({
+      where: {
+        name: 'ringcentral',
+        userId
+      }
+    })
     // get reminder event, do token renew and subscribe renew
     if (user && isRenewEvent) {
       await user.ensureWebHook()

@@ -4,7 +4,6 @@
 
 import RingCentral from 'ringcentral-js-concise'
 import delay from 'timeout-as-promise'
-import copy from 'json-deep-copy'
 import { Service, Bot } from 'ringcentral-chatbot/dist/models'
 import { processMail } from './voicemail-process'
 import resultFormatter from './message-format'
@@ -13,47 +12,41 @@ export const subscribeInterval = () => '/restapi/v1.0/subscription/~?threshold=5
 
 export const User = Service
 
-User.init = async ({ code, token, data }) => {
+User.init = async ({ code, groupId, botId }) => {
   const rc = new RingCentral(
-    process.env.RINGCENTRAL_CHATBOT_CLIENT_ID,
-    process.env.RINGCENTRAL_CHATBOT_CLIENT_SECRET,
+    process.env.RINGCENTRAL_CLIENT_ID,
+    process.env.RINGCENTRAL_CLIENT_SECRET,
     process.env.RINGCENTRAL_SERVER
   )
-  if (code) { // public bot
-    await rc.authorize({
-      code,
-      redirectUri: process.env.RINGCENTRAL_CHATBOT_SERVER + '/rc/oauth'
-    })
-    const token = rc.token()
-    return User.create({
-      id: token.owner_id,
-      token,
-      data: {}
-    })
-  } else if (token) { // private bot
-    rc.token(token)
-    const r = await rc.get('/restapi/v1.0/account/~/extension/~')
-    return User.create({
-      id: r.data.id,
-      token: { ...token, owner_id: r.data.id },
-      data
-    })
-  }
+  await rc.authorize({
+    code,
+    redirectUri: process.env.RINGCENTRAL_CHATBOT_SERVER + '/rc/oauth'
+  })
+  const token = rc.token()
+  return User.create({
+    name: 'ringcentral',
+    userId: token.owner_id,
+    groupId,
+    botId,
+    data: {
+      token
+    }
+  })
 }
 
 Object.defineProperty(User.prototype, 'rc', {
   get: function () {
     const rc = new RingCentral(
-      process.env.RINGCENTRAL_APP_CLIENT_ID,
-      process.env.RINGCENTRAL_APP_CLIENT_SECRET,
+      process.env.RINGCENTRAL_CLIENT_ID,
+      process.env.RINGCENTRAL_CLIENT_SECRET,
       process.env.RINGCENTRAL_SERVER
     )
-    rc.token(this.token)
+    rc.token(this.data.token)
     return rc
   }
 })
 
-User.prototype.check = async function () {
+User.prototype.validate = async function () {
   try {
     await this.rc.get('/restapi/v1.0/account/~/extension/~')
     return true
@@ -61,10 +54,15 @@ User.prototype.check = async function () {
     if (!e.data) {
       throw e
     }
-    const errorCode = e.data.errorCode
+    const { errorCode } = e.data
     if (errorCode === 'OAU-232' || errorCode === 'CMN-405') {
-      await this.remove()
-      console.log(`User user ${this.id} had been deleted`)
+      await this.check()
+      await User.destroy({
+        where: {
+          userId: this.userId
+        }
+      })
+      console.log(`User ${this.userId} had been deleted`)
       return false
     }
     throw e
@@ -119,36 +117,6 @@ User.prototype.setupWebHook = async function () {
   }
 }
 
-User.prototype.removeGroup = async function (groupId) {
-  const inst = await User.findByPk(this.id)
-  const data = copy(inst.data)
-  delete data[groupId]
-  await User.update({
-    data
-  }, {
-    where: {
-      id: this.id
-    }
-  })
-}
-
-User.prototype.addGroup = async function (groupId, botId) {
-  const inst = await User.findByPk(this.id)
-  const data = copy(inst.data)
-  let hasNoGroup = Object.keys(data).length === 0
-  data[groupId] = botId
-  await User.update({
-    data
-  }, {
-    where: {
-      id: this.id
-    }
-  })
-  if (hasNoGroup) {
-    await this.ensureWebHook()
-  }
-}
-
 User.prototype.getVoiceMails = async function (count) {
   const r = await this.rc.get('/restapi/v1.0/account/~/extension/~/message-store', {
     params: {
@@ -159,9 +127,9 @@ User.prototype.getVoiceMails = async function (count) {
   return r.data.records
 }
 
-User.prototype.sendVoiceMailInfo = async function (processedMailInfo = '') {
-  for (const groupId of Object.keys(this.groups)) {
-    const botId = this.groups[groupId]
+User.prototype.sendVoiceMailInfo = async function (processedMailInfo = '', users) {
+  for (const user of users) {
+    const { botId, groupId } = user
     const bot = await Bot.findByPk(botId)
     await bot.sendMessage(
       groupId,
@@ -171,14 +139,19 @@ User.prototype.sendVoiceMailInfo = async function (processedMailInfo = '') {
 }
 
 User.prototype.processVoiceMail = async function (newMailCount) {
-  if (!Object.keys(this.data)) {
+  let users = await User.findAll({
+    where: {
+      userId: this.userId
+    }
+  })
+  if (!users.length) {
     return
   }
-  let voiceMails = await this.getVoiceMails(newMailCount)
-  let userId = this.id
+  let voiceMails = await this.getVoiceMails(newMailCount, users)
+  let { userId, botId } = this
   let headers = this.rc._bearerAuthorizationHeader()
   for (let mail of voiceMails) {
-    let msg = await processMail(mail, headers)
+    let msg = await processMail(mail, headers, botId)
     await this.sendVoiceMailInfo(
       resultFormatter(userId, msg || {})
     )
