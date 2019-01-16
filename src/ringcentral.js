@@ -117,7 +117,7 @@ User.prototype.setupWebHook = async function () {
           '/restapi/v1.0/account/~/extension/~/message-store',
           subscribeInterval()
         ],
-        expiresIn: 1799,
+        expiresIn: 121,
         deliveryMode: {
           transportType: 'WebHook',
           address: process.env.RINGCENTRAL_CHATBOT_SERVER + '/rc/webhook'
@@ -188,9 +188,9 @@ User.prototype.getSubscriptions = async function () {
 
 User.prototype.refresh = async function () {
   try {
-    let token = this.rc.token()
-    await this.rc.refresh()
-    token = this.rc.token()
+    let { rc } = this
+    await rc.refresh()
+    let token = rc.token()
     await User.update({
       data: {
         token
