@@ -10,7 +10,7 @@ import resultFormatter from './message-format'
 
 export const subscribeInterval = () => '/restapi/v1.0/subscription/~?threshold=59&interval=15'
 
-export const User = Service
+export class User extends Service {}
 
 User.init = async ({ code, groupId, botId }) => {
   const rc = new RingCentral(
@@ -23,6 +23,26 @@ User.init = async ({ code, groupId, botId }) => {
     redirectUri: process.env.RINGCENTRAL_CHATBOT_SERVER + '/rc/oauth'
   })
   const token = rc.token()
+  let where = {
+    name: 'ringcentral',
+    userId: token.owner_id,
+    groupId,
+    botId
+  }
+  let user = await User.findOne({
+    where
+  })
+  if (user) {
+    await User.update({
+      data: {
+        token
+      }
+    }, {
+      where
+    })
+    user.data = { token }
+    return user
+  }
   return User.create({
     name: 'ringcentral',
     userId: token.owner_id,
@@ -41,7 +61,7 @@ Object.defineProperty(User.prototype, 'rc', {
       process.env.RINGCENTRAL_CLIENT_SECRET,
       process.env.RINGCENTRAL_SERVER
     )
-    rc.token(this.data.token)
+    rc.token((this.data || {}).token)
     return rc
   }
 })
@@ -70,24 +90,22 @@ User.prototype.validate = async function () {
 }
 
 User.prototype.authorizeUri = function (groupId, botId) {
-  return this.rc.authorizeUri(process.env.RINGCENTRAL_BOT_SERVER + '/rc/oauth', {
+  return this.rc.authorizeUri(process.env.RINGCENTRAL_CHATBOT_SERVER + '/rc/oauth', {
     state: groupId + ':' + botId,
     responseType: 'code'
   })
 }
 
-User.prototype.ensureWebHook = async function () {
+User.prototype.ensureWebHook = async function (removeOnly = false) {
   const r = await this.rc.get('/restapi/v1.0/subscription')
   for (const sub of r.data.records) {
     if (sub.deliveryMode.address === process.env.RINGCENTRAL_CHATBOT_SERVER + '/rc/webhook') {
-      if (sub.status !== 'Active') {
-        await this.rc.delete(`/restapi/v1.0/subscription/${sub.id}`)
-      } else {
-        return
-      }
+      await this.rc.delete(`/restapi/v1.0/subscription/${sub.id}`)
     }
   }
-  await this.setupWebHook()
+  if (!removeOnly) {
+    await this.setupWebHook()
+  }
 }
 
 User.prototype.setupWebHook = async function () {
@@ -144,16 +162,56 @@ User.prototype.processVoiceMail = async function (newMailCount) {
       userId: this.userId
     }
   })
-  if (!users.length) {
+  if (!users || !users.length) {
     return
   }
-  let voiceMails = await this.getVoiceMails(newMailCount, users)
+  let voiceMails = await this.getVoiceMails(newMailCount)
   let { userId, botId } = this
   let headers = this.rc._bearerAuthorizationHeader()
   for (let mail of voiceMails) {
-    let msg = await processMail(mail, headers, botId)
-    await this.sendVoiceMailInfo(
-      resultFormatter(userId, msg || {})
-    )
+    let msg
+    try {
+      msg = await processMail(mail, headers, botId)
+      await this.sendVoiceMailInfo(
+        resultFormatter(userId, msg || {}), users
+      )
+    } catch (e) {
+      console.log(e)
+    }
+  }
+}
+
+User.prototype.getSubscriptions = async function () {
+  const r = await this.rc.get('/restapi/v1.0/subscription')
+  return r.data.records
+}
+
+User.prototype.refresh = async function () {
+  try {
+    let token = this.rc.token()
+    await this.rc.refresh()
+    token = this.rc.token()
+    await User.update({
+      data: {
+        token
+      }
+    }, {
+      where: {
+        name: 'ringcentral',
+        userId: this.userId
+      }
+    })
+    this.data = { token }
+    return true
+  } catch (e) {
+    console.log('User refresh token', e)
+    await User.destroy({
+      where: {
+        name: 'ringcentral',
+        userId: this.userId
+      }
+    })
+    console.log(`User ${this.userId} refresh token has expired`)
+    return false
   }
 }

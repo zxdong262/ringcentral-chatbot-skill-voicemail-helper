@@ -18,15 +18,22 @@ const handleMessage4Bot = async event => {
   )
   const botId = bot.id
   let user
+  let where = {
+    name: 'ringcentral',
+    userId,
+    groupId,
+    botId
+  }
   switch (text.toLowerCase()) {
     case 'unmonitor':
       user = await User.findOne({
-        where: {
-          userId
-        }
+        where
       })
       if (user) {
-        await user.destroy()
+        await user.ensureWebHook(true)
+        await User.destroy({
+          where
+        })
         await reply(`![:Person](${userId}), stopped monitoring your voicemail!\nIf you want me to monitor your voicemail again, please reply "![:Person](${botId}) monitor"`)
       } else {
         await reply(`![:Person](${userId}), If you want me to monitor your voicemail, please reply "![:Person](${botId}) monitor" first.`)
@@ -39,13 +46,15 @@ const handleMessage4Bot = async event => {
         }
       })
       if (user && await user.validate()) {
-        await User.create({
-          name: 'ringcentral',
-          userId,
-          groupId,
-          botId,
-          data: user.data
-        })
+        if (user.botId !== botId || user.groupId !== groupId) {
+          user = await User.create({
+            name: 'ringcentral',
+            userId,
+            groupId,
+            botId,
+            data: user.data
+          })
+        }
         await user.ensureWebHook()
         await reply(`![:Person](${userId}), now your voicemail is monitored!\nIf you want me to **stop monitor** your voicemail, please reply "![:Person](${botId}) unmonitor"`)
       } else {

@@ -83,3 +83,4 @@ fakeDB/
 google.json
 /dist/
 *.sqlite
+*.sqlite-journal

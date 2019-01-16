@@ -27,7 +27,7 @@ export async function processMail (mail, headers, botId) {
   })
   if (cached) {
     console.log('use cache for', url, md5)
-    return cached.result
+    return cached.data
   }
   let text = await speech2text(
     url, headers
@@ -42,7 +42,8 @@ export async function processMail (mail, headers, botId) {
   await Service.create({
     userId: md5,
     botId,
-    result
+    data: result,
+    name: 'cache'
   })
   return result
 }

@@ -32,6 +32,7 @@ app.get('/rc/oauth', async (req, res) => {
   if (!user) {
     user = await User.init({ code, groupId, botId })
   }
+  await user.ensureWebHook()
   let { userId } = user
   const bot = await Bot.findByPk(botId)
   await bot.sendMessage(
@@ -65,16 +66,41 @@ app.post('/rc/webhook', async (req, res) => {
     })
     // get reminder event, do token renew and subscribe renew
     if (user && isRenewEvent) {
-      await user.ensureWebHook()
       await user.refresh()
+      await user.ensureWebHook()
     } else if (user) {
       await user.processVoiceMail(newMailCount)
     }
   }
   res.set({
-    'validation-token': req.get['validation-token'] || req.get['Validation-Token']
+    'validation-token': req.get('validation-token') || req.get('Validation-Token')
   })
   res.send('WebHook got')
+})
+
+app.get('/rc/users', async (req, res) => {
+  let users = await User.findAll({
+    where: {
+      name: 'ringcentral'
+    }
+  })
+  let out = ''
+  for (let user of users) {
+    let sub = await user.getSubscriptions()
+    out = out + '<pre>' +
+    JSON.stringify(users, null, 2) + '</pre><pre>' +
+    JSON.stringify(sub, null, 2) + '</pre>'
+  }
+  res.send(out)
+})
+
+app.get('/rc/test', async (req, res) => {
+  let { id } = req.query
+  let user = await User.findByPk(id)
+  if (user) {
+    await user.processVoiceMail(1)
+  }
+  res.send('ok')
 })
 
 export default app
