@@ -45,16 +45,12 @@ const handleMessage4Bot = async event => {
           userId
         }
       })
-      if (user && await user.validate()) {
-        if (user.botId !== botId || user.groupId !== groupId) {
-          user = await User.create({
-            name: 'ringcentral',
-            userId,
-            groupId,
-            botId,
-            data: user.data
-          })
-        }
+      if (
+        user &&
+        await user.validate() &&
+        user.botId === botId &&
+        user.groupId === groupId
+      ) {
         await user.ensureWebHook()
         await reply(`![:Person](${userId}), now your voicemail is monitored!\nIf you want me to **stop monitor** your voicemail, please reply "![:Person](${botId}) unmonitor"`)
       } else {
