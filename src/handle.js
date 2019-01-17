@@ -41,15 +41,11 @@ const handleMessage4Bot = async event => {
       break
     case 'monitor':
       user = await User.findOne({
-        where: {
-          userId
-        }
+        where
       })
       if (
         user &&
-        await user.validate() &&
-        user.botId === botId &&
-        user.groupId === groupId
+        await user.validate()
       ) {
         await user.ensureWebHook()
         await reply(`![:Person](${userId}), now your voicemail is monitored!\nIf you want me to **stop monitor** your voicemail, please reply "![:Person](${botId}) unmonitor"`)

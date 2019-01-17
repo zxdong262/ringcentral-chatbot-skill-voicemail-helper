@@ -78,29 +78,4 @@ app.post('/rc/webhook', async (req, res) => {
   res.send('WebHook got')
 })
 
-app.get('/rc/users', async (req, res) => {
-  let users = await User.findAll({
-    where: {
-      name: 'ringcentral'
-    }
-  })
-  let out = ''
-  for (let user of users) {
-    let sub = await user.getSubscriptions()
-    out = out + '<pre>' +
-    JSON.stringify(users, null, 2) + '</pre><pre>' +
-    JSON.stringify(sub, null, 2) + '</pre>'
-  }
-  res.send(out)
-})
-
-app.get('/rc/test', async (req, res) => {
-  let { id } = req.query
-  let user = await User.findByPk(id)
-  if (user) {
-    await user.processVoiceMail(1)
-  }
-  res.send('ok')
-})
-
 export default app
