@@ -1,11 +1,44 @@
-# ringcentral-chatbot-skill-voicemail-helper
+# ringcentral-chatbot-skill-voicemail-helper <!-- omit in toc -->
 
 RingCentral Chatbot skill: Voicemail transcript and AI analysis.
+
+Support command: `monitor`, `unmonitor`, after user authurization, bot will watch for new voicemails of the user, and transcript any new voicemail, and do some analysis with Google API.
+
+## Table of Contents <!-- omit in toc -->
+
+- [Screenshots](#screenshots)
+- [Prerequisites](#prerequisites)
+- [Use](#use)
+- [Test](#test)
+  - [Create the Apps](#create-the-apps)
+    - [Server/Bot App](#serverbot-app)
+    - [Web-based App](#web-based-app)
+  - [After apps created, you can get app client id and secret, put them in `.env`](#after-apps-created-you-can-get-app-client-id-and-secret-put-them-in-env)
+  - [Start the bot server](#start-the-bot-server)
+
+## Screenshots
+
+![ ](screenshots/monitor.png)
+![ ](screenshots/unmonitor.png)
+![ ](screenshots/analysis.png)
 
 ## Prerequisites
 
 - nodejs/npm
-- a Google API account with a saved Google credentials file, note that you can still run local demo to see how it works without Google account/credential, but with fake demo data.
+- a Google API account with a saved Google credentials file, note that you can still run local demo to see how it works without Google account/credential, but with fake demo data, Set env in `.env`:
+
+```env
+## for Google Cloud API credential path
+GOOGLE_APPLICATION_CREDENTIALS=path-to-google-credential.json
+```
+
+- Login to [developer.ringcentral.com](https://developer.ringcentral.com) and [create browser based app](#Web-based-App). Set env in `.env`:
+
+```env
+## ringcentral web-based app for rc user auth
+RINGCENTRAL_CLIENT_ID=
+RINGCENTRAL_CLIENT_SECRET=
+```
 
 ## Use
 
@@ -71,7 +104,7 @@ Login to [developer.ringcentral.com](https://developer.ringcentral.com) and crea
 
 ### After apps created, you can get app client id and secret, put them in `.env`
 
-## Start the bot server
+### Start the bot server
 
 ```bash
 npm start
