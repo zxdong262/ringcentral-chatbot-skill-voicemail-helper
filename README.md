@@ -109,6 +109,9 @@ Login to [developer.ringcentral.com](https://developer.ringcentral.com) and crea
 ```bash
 npm start
 ## server runs on http://localhost:3000
+
+## init database
+curl -X PUT -u admin:password https://<bot-server>/admin/setup-database
 ```
 
 Then you can goto bot app's bot menu, add the bot, and login to [https://glip-app.devtest.ringcentral.com](https://glip-app.devtest.ringcentral.com) to talk to the bot, try `@bot monitor` and `@bot unmonitor` command.
